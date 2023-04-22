@@ -27,38 +27,50 @@ nb_clusters <- NbClust(scaled_vehicles_data, min.nc = 2, max.nc = 5, method = "k
 # Print the best number of clusters
 cat("Best number of clusters based on automated methods: ", nb_clusters$Best.nc, "\n")
 
+
+# Check if multiple optimal numbers of clusters were found
+if (length(nb_clusters$Best.nc) > 1) {
+  num_clusters <- nb_clusters$Best.nc[1]
+  cat("Multiple optimal numbers of clusters found, using the first one:", num_clusters, "\n")
+} else {
+  num_clusters <- nb_clusters$Best.nc
+}
+
+
 # Perform k-means clustering using the most favoured number of clusters
-num_clusters <- nb_clusters$Best.nc
-set.seed(123)
-kmeans_result <- kmeans(scaled_vehicles_data, centers = matrix(rnorm(num_clusters * ncol(scaled_vehicles_data)), ncol = ncol(scaled_vehicles_data)), nstart = 25)
+if(num_clusters > 1) {
+  set.seed(123)
+  kmeans_result <- kmeans(scaled_vehicles_data, centers = matrix(rnorm(num_clusters * ncol(scaled_vehicles_data)), ncol = ncol(scaled_vehicles_data)), nstart = 25)
+  
+  # Print the kmeans output
+  cat("kmeans output:\n")
+  print(kmeans_result)
+  
+  # Calculate between-cluster sum of squares (BSS), total sum of squares (TSS), and within-cluster sum of squares (WSS) indices
+  BSS <- sum((colMeans(scaled_vehicles_data) - colMeans(kmeans_result$centers))^2) * nrow(scaled_vehicles_data)
+  TSS <- sum(apply(scaled_vehicles_data, 2, function(x) sum((x - mean(x))^2)))
+  WSS <- sum(kmeans_result$withinss)
+  
+  # Print BSS/TSS ratio
+  cat("BSS/TSS ratio:", BSS/TSS, "\n")
+  
+  # Plot the clustering results
+  plot(scaled_vehicles_data, col = kmeans_result$cluster)
+  points(kmeans_result$centers, col = 1:num_clusters, pch = 8, cex = 2)
+  
+  # Calculate silhouette coefficients and plot the silhouette plot
+  if(num_clusters > 1) {
+    silhouette_obj <- silhouette(kmeans_result$cluster, dist(scaled_vehicles_data))
+    plot(silhouette_obj)
+  }
+} else {
+  cat("Cannot perform k-means clustering with only one cluster.\n")
+}
 
-# Print the kmeans output
-cat("kmeans output:\n")
-print(kmeans_result)
 
-# Calculate between-cluster sum of squares (BSS), total sum of squares (TSS), and within-cluster sum of squares (WSS) indices
-BSS <- sum((colMeans(scaled_vehicles_data) - colMeans(kmeans_result$centers))^2) * nrow(scaled_vehicles_data)
-TSS <- sum(apply(scaled_vehicles_data, 2, function(x) sum((x - mean(x))^2)))
-WSS <- sum(kmeans_result$withinss)
 
-# Print BSS/TSS ratio
-cat("BSS/TSS ratio:", BSS/TSS, "\n")
 
-# Plot the clustering results
-plot(scaled_vehicles_data, col = kmeans_result$cluster)
-points(kmeans_result$centers, col = 1:num_clusters, pch = 8, cex = 2)
 
-# Compute silhouette widths for each point
-sil <- silhouette(km$cluster, dist(scaled_data), keep.data=TRUE)
-
-# Extract the silhouette widths from the list
-sil_widths <- sil$silinfo[, "sil_width"]
-
-# Remove any missing or infinite values
-sil_widths <- sil_widths[is.finite(sil_widths)]
-
-# Plot the silhouette plot
-plot(sil_widths, main = "Silhouette Plot for K-Means Clustering", xlab = "Silhouette Width")
 
 
 
