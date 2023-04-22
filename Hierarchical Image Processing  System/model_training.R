@@ -2,6 +2,7 @@
 library(readxl)
 library(datasets)
 library(NbClust)
+library(cluster)
 
 # Load the vehicles dataset
 vehicles_data <- read_xlsx("data sets/vehicles.xlsx")
@@ -46,3 +47,19 @@ cat("BSS/TSS ratio:", BSS/TSS, "\n")
 # Plot the clustering results
 plot(scaled_vehicles_data, col = kmeans_result$cluster)
 points(kmeans_result$centers, col = 1:num_clusters, pch = 8, cex = 2)
+
+# Compute silhouette widths for each point
+sil <- silhouette(km$cluster, dist(scaled_data), keep.data=TRUE)
+
+# Extract the silhouette widths from the list
+sil_widths <- sil$silinfo[, "sil_width"]
+
+# Remove any missing or infinite values
+sil_widths <- sil_widths[is.finite(sil_widths)]
+
+# Plot the silhouette plot
+plot(sil_widths, main = "Silhouette Plot for K-Means Clustering", xlab = "Silhouette Width")
+
+
+
+
