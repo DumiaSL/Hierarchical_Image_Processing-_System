@@ -3,6 +3,10 @@ library(readxl)
 library(datasets)
 library(NbClust)
 library(cluster)
+library(FactoMineR)
+library(factoextra)
+
+#part 1
 
 # Load the vehicles dataset
 vehicles_data <- read_xlsx("data sets/vehicles.xlsx")
@@ -36,7 +40,6 @@ if (length(nb_clusters$Best.nc) > 1) {
   num_clusters <- nb_clusters$Best.nc
 }
 
-
 # Perform k-means clustering using the most favoured number of clusters
 if(num_clusters > 1) {
   set.seed(123)
@@ -67,11 +70,32 @@ if(num_clusters > 1) {
   cat("Cannot perform k-means clustering with only one cluster.\n")
 }
 
+#part 2
 
+# Apply PCA analysis
+pca_result <- prcomp(scaled_vehicles_data, center = TRUE, scale. = TRUE)
 
+# Print eigenvalues and eigenvectors
+cat("Eigenvalues:\n")
+print(pca_result$eig)
+cat("Eigenvectors:\n")
+print(pca_result$var)
 
+# Calculate cumulative score per principal components
+cumulative_score <- cumsum(pca_result$eig/sum(pca_result$eig) * 100)
 
+# Print the cumulative scores
+cat("Cumulative scores:\n")
+print(cumulative_score)
 
+# Choose the number of principal components that provide at least cumulative score > 92%
+num_pcs <- length(cumulative_score[cumulative_score <= 92]) + 1
 
+# Create a new transformed dataset with principal components as attributes
+transformed_vehicles_data <- predict(pca_result, newdata = scaled_vehicles_data)[, 1:num_pcs]
+
+# Print the transformed dataset
+cat("Transformed dataset:\n")
+print(transformed_vehicles_data)
 
 
