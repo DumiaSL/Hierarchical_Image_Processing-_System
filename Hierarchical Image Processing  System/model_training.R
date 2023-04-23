@@ -6,6 +6,7 @@ library(NbClust)
 library(cluster)
 library(FactoMineR)
 library(factoextra)
+library(fpc)
 
 #part 1
 
@@ -156,6 +157,7 @@ if(num_clusters > 1) {
   cat("Cannot perform k-means clustering with only one cluster.\n")
 }
 
+#------------------------------------------------------------------------------------------------------------------------------
 #part 2
 
 # Apply PCA analysis
@@ -184,12 +186,14 @@ transformed_vehicles_data <- predict(pca_result, newdata = scaled_vehicles_data)
 cat("Transformed dataset:\n")
 print(transformed_vehicles_data)
 
+
 #--------------------------------------------------------------------------------------------------------------
 # Use NbClust to determine the number of clusters in transformed_vehicles_data
 nb_clusters_transf <- NbClust(transformed_vehicles_data, min.nc = 2, max.nc = 5, method = "kmeans", index = "silhouette")
 
 # Print the best number of clusters in transformed_vehicles_data
 cat("Best number of clusters in transformed_vehicles_data based on automated methods: ", nb_clusters_transf$Best.nc, "\n")
+
 
 #--------------------------------------------------------------------------------------------------------------
 # Create an elbow curve for KMeans clustering
@@ -215,6 +219,7 @@ cat("Best number of clusters in transformed_vehicles_data based on the elbow met
 # Reshape the vector "transformed_vehicles_data" into a matrix with a single column
 transformed_vehicles_data <- matrix(transformed_vehicles_data, ncol = 1)
 
+
 #--------------------------------------------------------------------------------------------------------------
 # Calculate the gap statistic for different values of k
 set.seed(123)
@@ -237,6 +242,10 @@ cat("Optimal number of clusters based on the gap statistic: ", optimal_k, "\n")
 set.seed(123)
 kmeans_transf <- kmeans(transformed_vehicles_data, nb_clusters_transf$Best.nc)
 
+# Plot the clustering results
+plot(transformed_vehicles_data, col = kmeans_transf$cluster)
+points(kmeans_transf$centers, col = 1:nb_clusters_transf$Best.nc, pch = 8, cex = 2)
+
 # Print the k-means output
 print(kmeans_transf)
 
@@ -252,4 +261,23 @@ cat("WSS for transformed_vehicles_data: ", WSS_transf, "\n")
 
 # Print k-means output for transformed_vehicles_data
 print(kmeans_transf)
+
+
+# Plot the clustering results
+plot(transformed_vehicles_data, col = kmeans_transf$cluster)
+points(kmeans_transf$centers, col = 1:num_clusters, pch = 8, cex = 2)
+
+# Calculate silhouette coefficients and plot the silhouette plot
+silhouette_obj <- silhouette(kmeans_transf$cluster, dist(transformed_vehicles_data))
+plot(silhouette_obj)
+
+# Calculating Average silhouette width score
+silhouette_avg <- mean(silhouette_obj[, 3])
+cat("Average silhouette width score: ", silhouette_avg, "\n")
+
+# Compute Calinski-Harabasz index
+ch_index <- cluster.stats(transformed_vehicles_data, kmeans_transf$cluster)[[1]]
+
+# Print the CH index
+cat("Calinski-Harabasz Index: ", ch_index, "\n")
 
