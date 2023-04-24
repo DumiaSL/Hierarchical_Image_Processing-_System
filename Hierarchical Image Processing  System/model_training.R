@@ -280,4 +280,3 @@ ch_index <- cluster.stats(transformed_vehicles_data, kmeans_transf$cluster)[[1]]
 
 # Print the CH index
 cat("Calinski-Harabasz Index: ", ch_index, "\n")
-
