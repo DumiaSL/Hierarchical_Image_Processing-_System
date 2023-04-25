@@ -16,16 +16,17 @@ vehicles_data <- read_xlsx("data sets/vehicles.xlsx")
 # Remove the output variable (class attribute)
 vehicles_data <- vehicles_data[, 1:18]
 
-# Detect and remove outliers using the IQR method
-q1 <- apply(vehicles_data, 2, quantile, 0.25)
-q3 <- apply(vehicles_data, 2, quantile, 0.75)
-iqr <- q3 - q1
-threshold <- 1.5 * iqr
-outliers <- apply(vehicles_data, 2, function(x) x < (q1 - threshold) | x > (q3 + threshold))
-vehicles_data <- vehicles_data[rowSums(outliers) == 0,]
-
 # Scale the data using standardization
 scaled_vehicles_data <- scale(vehicles_data)
+
+# Detect and remove outliers using the IQR method
+q1 <- apply(scaled_vehicles_data, 2, quantile, 0.25)
+q3 <- apply(scaled_vehicles_data, 2, quantile, 0.75)
+iqr <- q3 - q1
+threshold <- 1.5 * iqr
+outliers <- apply(scaled_vehicles_data, 2, function(x) x < (q1 - threshold) | x > (q3 + threshold))
+scaled_vehicles_data <- scaled_vehicles_data[rowSums(outliers) == 0,]
+
 
 # Perform PCA on the scaled data
 pca <- prcomp(scaled_vehicles_data, scale = TRUE)
@@ -37,7 +38,7 @@ pc2 <- pca$x[, 2]
 # Create a scatter plot of the first two principal components
 ggplot(data.frame(pc1, pc2), aes(x = pc1, y = pc2)) +
   geom_point() +
-  labs(x = "Principal Component 1", y = "Principal Component 2", 
+  labs(x = "Principal Component 1", y = "Principal Component 2",
        title = "Scatter plot of first two principal components")
 
 
@@ -80,7 +81,6 @@ cat("Best number of clusters based on the elbow method: ", elbow, "\n")
 set.seed(123)
 gap_stat <- clusGap(scaled_vehicles_data, kmeans, nstart = 25, K.max = 10, B = 50)
 
-# fviz_gap_stat(gap_stat)
 
 # Plot the gap statistic
 plot(gap_stat, main = "Gap statistic for k-means clustering")
@@ -102,7 +102,7 @@ silhouette_vals <- vector("list", k.max - k.min + 1)
 # Loop through each value of K and perform clustering using K-means algorithm
 for (k in k.min:k.max) {
   km <- kmeans(scaled_vehicles_data, centers = k, nstart = 10)
-  
+
   # Calculate the silhouette width for each data point
   silhouette_vals[[k - k.min + 1]] <- silhouette(km$cluster, dist(scaled_vehicles_data))
 }
@@ -133,23 +133,23 @@ if (length(nb_clusters$Best.nc) > 1) {
 if(num_clusters > 1) {
   set.seed(123)
   kmeans_result <- kmeans(scaled_vehicles_data, centers = matrix(rnorm(num_clusters * ncol(scaled_vehicles_data)), ncol = ncol(scaled_vehicles_data)), nstart = 25)
-  
+
   # Print the kmeans output in scaled_vehicles_data
   cat("kmeans output:\n")
   print(kmeans_result)
-  
+
   # Calculate between-cluster sum of squares (BSS), total sum of squares (TSS), and within-cluster sum of squares (WSS) indices
   BSS <- sum((colMeans(scaled_vehicles_data) - colMeans(kmeans_result$centers))^2) * nrow(scaled_vehicles_data)
   TSS <- sum(apply(scaled_vehicles_data, 2, function(x) sum((x - mean(x))^2)))
   WSS <- sum(kmeans_result$withinss)
-  
+
   # Print BSS/TSS ratio
   cat("BSS/TSS ratio:", BSS/TSS, "\n")
-  
+
   # Plot the clustering results
   plot(scaled_vehicles_data, col = kmeans_result$cluster)
   points(kmeans_result$centers, col = 1:num_clusters, pch = 8, cex = 2)
-  
+
   # Calculate silhouette coefficients and plot the silhouette plot
   silhouette_obj <- silhouette(kmeans_result$cluster, dist(scaled_vehicles_data))
   plot(silhouette_obj)
