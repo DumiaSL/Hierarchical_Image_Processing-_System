@@ -1,6 +1,5 @@
 # Load necessary libraries
 library(readxl)
-library(datasets)
 library(ggplot2)
 library(NbClust)
 library(cluster)
@@ -47,6 +46,7 @@ ggplot(data.frame(pc1, pc2), aes(x = pc1, y = pc2)) +
 nb_clusters <- NbClust(scaled_vehicles_data, min.nc = 2, max.nc = 5, method = "kmeans", index = "silhouette")
 
 # Plot the bar plot of the clustering indices
+par(mar=c(1,1,1,1))
 plot(nb_clusters$All.index, type = "b", xlab = "Number of clusters", ylab = "Clustering index", main = "NbClust plot")
 abline(v = nb_clusters$Best.nc, col = "blue")
 
@@ -102,7 +102,7 @@ silhouette_vals <- vector("list", k.max - k.min + 1)
 # Loop through each value of K and perform clustering using K-means algorithm
 for (k in k.min:k.max) {
   km <- kmeans(scaled_vehicles_data, centers = k, nstart = 10)
-
+  
   # Calculate the silhouette width for each data point
   silhouette_vals[[k - k.min + 1]] <- silhouette(km$cluster, dist(scaled_vehicles_data))
 }
@@ -133,23 +133,25 @@ if (length(nb_clusters$Best.nc) > 1) {
 if(num_clusters > 1) {
   set.seed(123)
   kmeans_result <- kmeans(scaled_vehicles_data, centers = matrix(rnorm(num_clusters * ncol(scaled_vehicles_data)), ncol = ncol(scaled_vehicles_data)), nstart = 25)
-
+  
   # Print the kmeans output in scaled_vehicles_data
   cat("kmeans output:\n")
   print(kmeans_result)
-
+  
   # Calculate between-cluster sum of squares (BSS), total sum of squares (TSS), and within-cluster sum of squares (WSS) indices
   BSS <- sum((colMeans(scaled_vehicles_data) - colMeans(kmeans_result$centers))^2) * nrow(scaled_vehicles_data)
   TSS <- sum(apply(scaled_vehicles_data, 2, function(x) sum((x - mean(x))^2)))
   WSS <- sum(kmeans_result$withinss)
-
+  
   # Print BSS/TSS ratio
   cat("BSS/TSS ratio:", BSS/TSS, "\n")
-
+  cat("BSS_indices : ",BSS, "\n")
+  cat("WSS_indices : ",WSS, "\n")
+  
   # Plot the clustering results
   plot(scaled_vehicles_data, col = kmeans_result$cluster)
   points(kmeans_result$centers, col = 1:num_clusters, pch = 8, cex = 2)
-
+  
   # Calculate silhouette coefficients and plot the silhouette plot
   silhouette_obj <- silhouette(kmeans_result$cluster, dist(scaled_vehicles_data))
   plot(silhouette_obj)
@@ -224,8 +226,6 @@ transformed_vehicles_data <- matrix(transformed_vehicles_data, ncol = 1)
 # Calculate the gap statistic for different values of k
 set.seed(123)
 gap_stat <- clusGap(transformed_vehicles_data, kmeans, nstart = 25, K.max = 10, B = 50)
-
-# fviz_gap_stat(gap_stat)
 
 # Plot the gap statistic
 plot(gap_stat, main = "Gap statistic for k-means clustering")
