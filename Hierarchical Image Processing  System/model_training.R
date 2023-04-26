@@ -18,14 +18,6 @@ vehicles_data <- vehicles_data[, 1:18]
 # Scale the data using standardization
 scaled_vehicles_data <- scale(vehicles_data)
 
-# # Detect and remove outliers using the IQR method
-# q1 <- apply(scaled_vehicles_data, 2, quantile, 0.25)
-# q3 <- apply(scaled_vehicles_data, 2, quantile, 0.75)
-# iqr <- q3 - q1
-# threshold <- 1.5 * iqr
-# outliers <- apply(scaled_vehicles_data, 2, function(x) x < (q1 - threshold) | x > (q3 + threshold))
-# scaled_vehicles_data <- scaled_vehicles_data[rowSums(outliers) == 0,]
-
 # Calculate z-scores for each variable
 z_scores <- apply(scaled_vehicles_data, 2, function(x) abs(scale(x, center = TRUE, scale = FALSE)))
 
@@ -71,8 +63,6 @@ ggplot(df_long, aes(x = Clusters, y = Value, fill = Index)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   geom_vline(xintercept = nb_clusters$Best.nc[1], linetype = "dashed", color = "blue")
 
-
-
 #--------------------------------------------------------------------------------------------------------------
 # Create an elbow curve for KMeans clustering
 # Calculate the within-cluster sum of squares for different values of k
@@ -105,17 +95,25 @@ cat("Best number of clusters based on the elbow method: ", elbow, "\n")
 
 #--------------------------------------------------------------------------------------------------------------
 # Calculate the gap statistic for different values of k
-
-set.seed(123)
 #Gap statistics
 gap_stat <- clusGap(scaled_vehicles_data, FUN = kmeans, nstart = 25,
-                    K.max = 10, B = 50)
-plot(gap_stat, main = "Gap Statistic plot for Vehicle Dataset")
+                    K.max = 3, B = 50)
+# Convert gap_stat object to a data frame
+gap_df <- data.frame(
+  k = 1:3,
+  gap = gap_stat$Tab[, "gap"],
+  se = gap_stat$Tab[, "SE.sim"]
+)
+
+# Plot the Gap Statistic using ggplot2
+ggplot(gap_df, aes(x = k, y = gap)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = gap - se, ymax = gap + se), width = 0.2) +
+  labs(x = "Number of Clusters", y = "Gap Statistic", title = "Gap Statistic plot for Vehicle Dataset")
 
 # Identify the optimal number of clusters
 optimal_k <- maxSE(gap_stat$Tab[, "gap"], gap_stat$Tab[, "SE.sim"], method = "Tibs2001SEmax")
-cat("Optimal number of clusters based on the gap statistic: ",optimal_k,"\n")
-
+cat("Optimal number of clusters based on the gap statistic: ", optimal_k,"\n")
 
 #--------------------------------------------------------------------------------------------------------------
 # Calculate the average silhouette width for different values of k
@@ -137,8 +135,14 @@ for (k in k.min:k.max) {
 # Calculate the average silhouette width for each value of K
 silhouette_avg <- sapply(silhouette_vals, function(x) mean(x[, 3]))
 
-# Plot the silhouette widths for each value of K
-plot(k.min:k.max, silhouette_avg, type = "b", xlab = "Number of clusters", ylab="Silhouette")
+# Create a data frame with the silhouette widths for each value of K
+df <- data.frame(k = k.min:k.max, silhouette = silhouette_avg)
+
+# Plot the silhouette widths using ggplot2
+ggplot(df, aes(x = k, y = silhouette)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Number of clusters", y = "Silhouette")
 
 # Find the index of the maximum silhouette width
 best_k <- which.max(silhouette_avg) + k.min - 1
@@ -146,15 +150,8 @@ best_k <- which.max(silhouette_avg) + k.min - 1
 # Print the best number of clusters based on the silhouette method
 cat("Best number of clusters based on the silhouette method: ", best_k, "\n")
 
-
-#--------------------------------------------------------------------------------------------------------------
-# Check if multiple optimal numbers of clusters were found in scaled_vehicles_data
-if (length(nb_clusters$Best.nc) > 1) {
-  num_clusters <- nb_clusters$Best.nc[1]
-  cat("Multiple optimal numbers of clusters found, using the first one:", num_clusters, "\n")
-} else {
-  num_clusters <- nb_clusters$Best.nc
-}
+#number of clusters using elbow method
+num_clusters <- elbow
 
 # Perform k-means clustering using the most favoured number of clusters in scaled_vehicles_data
 if(num_clusters > 1) {
@@ -165,23 +162,30 @@ if(num_clusters > 1) {
   cat("kmeans output:\n")
   print(kmeans_result)
   
-  # Calculate between-cluster sum of squares (BSS), total sum of squares (TSS), and within-cluster sum of squares (WSS) indices
-  BSS <- sum((colMeans(scaled_vehicles_data) - colMeans(kmeans_result$centers))^2) * nrow(scaled_vehicles_data)
+  # Calculate BSS, TSS, and WSS indices
+  centroid_values <- as.data.frame(kmeans_result$centers)
+  colnames(centroid_values) <- colnames(scaled_vehicles_data)
+  BSS <- sum(colSums((centroid_values - colMeans(scaled_vehicles_data))^2)) * nrow(scaled_vehicles_data)
   TSS <- sum(apply(scaled_vehicles_data, 2, function(x) sum((x - mean(x))^2)))
   WSS <- sum(kmeans_result$withinss)
   
-  # Print BSS/TSS ratio
   cat("BSS/TSS ratio:", BSS/TSS, "\n")
+  cat("TSS_indices : ",TSS, "\n")
   cat("BSS_indices : ",BSS, "\n")
   cat("WSS_indices : ",WSS, "\n")
   
   # Plot the clustering results
+  par(mar=c(1,1,1,1))
   plot(scaled_vehicles_data, col = kmeans_result$cluster)
   points(kmeans_result$centers, col = 1:num_clusters, pch = 8, cex = 2)
   
   # Calculate silhouette coefficients and plot the silhouette plot
   silhouette_obj <- silhouette(kmeans_result$cluster, dist(scaled_vehicles_data))
   plot(silhouette_obj)
+  
+  # Calculate the average silhouette width score
+  avg_sil_width <- mean(silhouette_obj[, 3])
+  cat("Average Silhouette Width Score:", avg_sil_width, "\n")
 } else {
   cat("Cannot perform k-means clustering with only one cluster.\n")
 }
@@ -191,12 +195,6 @@ if(num_clusters > 1) {
 
 # Apply PCA analysis
 pca_result <- prcomp(scaled_vehicles_data, center = TRUE, scale. = TRUE)
-
-# Print eigenvalues and eigenvectors
-cat("Eigenvalues:\n")
-print(pca_result$eig)
-cat("Eigenvectors:\n")
-print(pca_result$var)
 
 # Calculate cumulative score per principal components
 cumulative_score <- cumsum(pca_result$eig/sum(pca_result$eig) * 100)
@@ -218,11 +216,8 @@ print(transformed_vehicles_data)
 
 #--------------------------------------------------------------------------------------------------------------
 # Use NbClust to determine the number of clusters in transformed_vehicles_data
-nb_clusters_transf <- NbClust(transformed_vehicles_data, min.nc = 2, max.nc = 5, method = "kmeans", index = "silhouette")
-
-# Print the best number of clusters in transformed_vehicles_data
-cat("Best number of clusters in transformed_vehicles_data based on automated methods: ", nb_clusters_transf$Best.nc, "\n")
-
+set.seed(123)
+nb_clusters <- NbClust(transformed_vehicles_data, min.nc = 2, max.nc = 10, method = "kmeans", index = "all")
 
 #--------------------------------------------------------------------------------------------------------------
 # Create an elbow curve for KMeans clustering
@@ -252,7 +247,7 @@ transformed_vehicles_data <- matrix(transformed_vehicles_data, ncol = 1)
 #--------------------------------------------------------------------------------------------------------------
 # Calculate the gap statistic for different values of k
 set.seed(123)
-gap_stat <- clusGap(transformed_vehicles_data, kmeans, nstart = 25, K.max = 10, B = 50)
+gap_stat <- clusGap(transformed_vehicles_data, kmeans, nstart = 25, K.max = 3, B = 50)
 
 # Plot the gap statistic
 plot(gap_stat, main = "Gap statistic for k-means clustering")
@@ -281,14 +276,19 @@ BSS_transf <- sum(kmeans_transf$size * apply((kmeans_transf$centers - apply(tran
 TSS_transf <- sum(apply(transformed_vehicles_data^2, 1, sum)) - (sum(transformed_vehicles_data)^2)/length(transformed_vehicles_data)
 WSS_transf <- kmeans_transf$tot.withinss
 
+# Calculate BSS and WSS for transformed_vehicles_data
+BSS_transf <- sum(kmeans_transf$size * apply((kmeans_transf$centers - apply(transformed_vehicles_data, 2, mean))^2, 1, sum))
+TSS_transf <- sum(apply(transformed_vehicles_data^2, 1, sum)) - (sum(transformed_vehicles_data)^2)/length(transformed_vehicles_data)
+WSS_transf <- kmeans_transf$tot.withinss
+
 # Print BSS/TSS ratio, BSS, and WSS for transformed_vehicles_data
 cat("BSS/TSS ratio for transformed_vehicles_data: ", BSS_transf/TSS_transf, "\n")
+cat("TSS for transformed_vehicles_data: ", TSS_transf, "\n")
 cat("BSS for transformed_vehicles_data: ", BSS_transf, "\n")
 cat("WSS for transformed_vehicles_data: ", WSS_transf, "\n")
 
 # Print k-means output for transformed_vehicles_data
 print(kmeans_transf)
-
 
 # Plot the clustering results
 plot(transformed_vehicles_data, col = kmeans_transf$cluster)
