@@ -18,13 +18,22 @@ vehicles_data <- vehicles_data[, 1:18]
 # Scale the data using standardization
 scaled_vehicles_data <- scale(vehicles_data)
 
-# Detect and remove outliers using the IQR method
-q1 <- apply(scaled_vehicles_data, 2, quantile, 0.25)
-q3 <- apply(scaled_vehicles_data, 2, quantile, 0.75)
-iqr <- q3 - q1
-threshold <- 1.5 * iqr
-outliers <- apply(scaled_vehicles_data, 2, function(x) x < (q1 - threshold) | x > (q3 + threshold))
-scaled_vehicles_data <- scaled_vehicles_data[rowSums(outliers) == 0,]
+# # Detect and remove outliers using the IQR method
+# q1 <- apply(scaled_vehicles_data, 2, quantile, 0.25)
+# q3 <- apply(scaled_vehicles_data, 2, quantile, 0.75)
+# iqr <- q3 - q1
+# threshold <- 1.5 * iqr
+# outliers <- apply(scaled_vehicles_data, 2, function(x) x < (q1 - threshold) | x > (q3 + threshold))
+# scaled_vehicles_data <- scaled_vehicles_data[rowSums(outliers) == 0,]
+
+# Calculate z-scores for each variable
+z_scores <- apply(scaled_vehicles_data, 2, function(x) abs(scale(x, center = TRUE, scale = FALSE)))
+
+# Identify rows with any z-score greater than 3 (a common threshold for outliers)
+outliers <- apply(z_scores, 1, max) > 3
+
+# Remove outlier rows from the dataset
+scaled_vehicles_data <- scaled_vehicles_data[!outliers,]
 
 
 # Perform PCA on the scaled data
@@ -43,15 +52,25 @@ ggplot(data.frame(pc1, pc2), aes(x = pc1, y = pc2)) +
 
 #--------------------------------------------------------------------------------------------------------------
 # Use NbClust to determine the number of clusters in scaled_vehicles_data
-nb_clusters <- NbClust(scaled_vehicles_data, min.nc = 2, max.nc = 5, method = "kmeans", index = "silhouette")
+set.seed(123)
+nb_clusters <- NbClust(scaled_vehicles_data, min.nc = 2, max.nc = 10, method = "kmeans", index = "all")
 
-# Plot the bar plot of the clustering indices
-par(mar=c(1,1,1,1))
-plot(nb_clusters$All.index, type = "b", xlab = "Number of clusters", ylab = "Clustering index", main = "NbClust plot")
-abline(v = nb_clusters$Best.nc, col = "blue")
+# Create a data frame with the clustering indices and the number of clusters
+df <- data.frame(Clusters = 2:10, nb_clusters$All.index)
 
-# Print the best number of clusters in scaled_vehicles_data
-cat("Best number of clusters based on NbClust automated methods: ", nb_clusters$Best.nc, "\n")
+# Melt the data frame to long format
+df_long <- reshape2::melt(df, id.vars = "Clusters", variable.name = "Index", value.name = "Value")
+
+# Plot the bar plot using ggplot2
+ggplot(df_long, aes(x = Clusters, y = Value, fill = Index)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Number of clusters") +
+  ylab("Clustering index") +
+  ggtitle("NbClust plot") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_vline(xintercept = nb_clusters$Best.nc[1], linetype = "dashed", color = "blue")
+
 
 
 #--------------------------------------------------------------------------------------------------------------
@@ -64,9 +83,17 @@ for (i in 2:5) {
 }
 
 # Plot the elbow curve
-plot(1:5, wcss, type = "b", xlab = "Number of clusters", ylab = "WCSS")
-title(main = "Elbow curve for k-means clustering")
-abline(v = 3, col = "red", lty = 2)
+# Create a data frame with the WCSS values and the number of clusters
+df <- data.frame(Clusters = 1:5, WCSS = wcss)
+
+# Plot the elbow curve using ggplot2
+ggplot(df, aes(x = Clusters, y = WCSS)) +
+  geom_point() +
+  geom_line() +
+  xlab("Number of clusters") +
+  ylab("WCSS") +
+  ggtitle("Elbow curve for k-means clustering") +
+  geom_vline(xintercept = 3, linetype = "dashed", color = "red")
 
 # Find the "elbow" in the plot
 diffs <- diff(wcss)
@@ -78,16 +105,16 @@ cat("Best number of clusters based on the elbow method: ", elbow, "\n")
 
 #--------------------------------------------------------------------------------------------------------------
 # Calculate the gap statistic for different values of k
+
 set.seed(123)
-gap_stat <- clusGap(scaled_vehicles_data, kmeans, nstart = 25, K.max = 10, B = 50)
-
-
-# Plot the gap statistic
-plot(gap_stat, main = "Gap statistic for k-means clustering")
+#Gap statistics
+gap_stat <- clusGap(scaled_vehicles_data, FUN = kmeans, nstart = 25,
+                    K.max = 10, B = 50)
+plot(gap_stat, main = "Gap Statistic plot for Vehicle Dataset")
 
 # Identify the optimal number of clusters
 optimal_k <- maxSE(gap_stat$Tab[, "gap"], gap_stat$Tab[, "SE.sim"], method = "Tibs2001SEmax")
-cat("Optimal number of clusters based on the gap statistic: ", optimal_k, "\n")
+cat("Optimal number of clusters based on the gap statistic: ",optimal_k,"\n")
 
 
 #--------------------------------------------------------------------------------------------------------------

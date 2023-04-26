@@ -194,8 +194,8 @@ narx_model <- neuralnet(V1 ~ ., data=input_output_matrix_18_19, hidden=c(5, 3),
                         threshold=0.01, stepmax=1e+05, lifesign="full", 
                         algorithm="rprop+", learningrate=0.01)
 
-# Plot the NARX model architecture
-plot(narx_model, rep="best")
+# # Plot the NARX model architecture
+# plot(narx_model, rep="best")
 
 
 # Define the neural network structures to be evaluated
