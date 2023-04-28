@@ -214,6 +214,7 @@ transformed_vehicles_data <- pca_result$ind$coord[,1:num_pcs]
 #--------------------------------------------------------------------------------------------------------------
 # Use NbClust to determine the number of clusters in transformed_vehicles_data
 set.seed(123)
+par(mar=c(1,1,1,1))
 # Determine the optimal number of clusters using NbClust
 nb_clusters_transf <- NbClust(transformed_vehicles_data, min.nc = 2, max.nc = 10, method = "kmeans",index="all")
 # Create a data frame with the clustering indices and the number of clusters
@@ -327,7 +328,7 @@ print(kmeans_transf)
 
 # Plot the clustering results
 plot(transformed_vehicles_data, col = kmeans_transf$cluster)
-points(kmeans_transf$centers, col = 1:num_clusters, pch = 8, cex = 2)
+points(kmeans_transf$centers, col = 1:elbow, pch = 8, cex = 2)
 
 # Calculate silhouette coefficients and plot the silhouette plot
 silhouette_obj <- silhouette(kmeans_transf$cluster, dist(transformed_vehicles_data))
