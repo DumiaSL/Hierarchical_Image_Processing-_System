@@ -8,6 +8,27 @@ library(keras)
 
 #Part 1
 
+# Define the root-mean-square error (RMSE) function
+rmse <- function(error) {
+  return(sqrt(mean(error^2)))
+}
+
+# Define the mean absolute error (MAE) function
+mae <- function(error) {
+  return(mean(abs(error)))
+}
+
+# Define the mean absolute percentage error (MAPE) function
+mape <- function(actual, predicted) {
+  return(mean(abs((actual - predicted)/actual)) * 100)
+}
+
+# Define the symmetric mean absolute percentage error (sMAPE) function
+smape <- function(actual, predicted) {
+  return(2 * mean(abs(actual - predicted) / (abs(actual) + abs(predicted))) * 100)
+}
+
+
 # Load the UOW consumption dataset
 uow_consumption_dataset <- read_xlsx("data sets/uow_consumption.xlsx")
 
