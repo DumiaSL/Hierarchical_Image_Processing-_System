@@ -8,27 +8,6 @@ library(keras)
 
 #Part 1
 
-# Define the root-mean-square error (RMSE) function
-rmse <- function(error) {
-  return(sqrt(mean(error^2)))
-}
-
-# Define the mean absolute error (MAE) function
-mae <- function(error) {
-  return(mean(abs(error)))
-}
-
-# Define the mean absolute percentage error (MAPE) function
-mape <- function(actual, predicted) {
-  return(mean(abs((actual - predicted)/actual)) * 100)
-}
-
-# Define the symmetric mean absolute percentage error (sMAPE) function
-smape <- function(actual, predicted) {
-  return(2 * mean(abs(actual - predicted) / (abs(actual) + abs(predicted))) * 100)
-}
-
-
 # Load the UOW consumption dataset
 uow_consumption_dataset <- read_xlsx("data sets/uow_consumption.xlsx")
 
@@ -174,26 +153,25 @@ cat("The best two-hidden layer neural network structure is",
     "and a total number of", sum(best_two_hidden$Structure) + length(best_two_hidden$Structure) + 1, "*1+1*1=", sum(best_two_hidden$Structure) + length(best_two_hidden$Structure) + 2, "weight parameters.\n")
 
 
-
-#Part 2 
+#Part 2
 
 
 # Define a function to build a neural network model
 build_neural_net <- function(train_data, test_data, input_vars, hidden_structure) {
-  
+
   # Create formula for the neural network
   formula <- paste("hour_20 ~", paste(input_vars, collapse = " + "))
-  
+
   # Build the neural network model using the neuralnet package
   nn_model <- neuralnet(as.formula(formula), train_data, hidden = hidden_structure)
-  
+
   # Prepare the test data for prediction
   test_matrix <- as.matrix(test_data[, input_vars, drop = FALSE])
   colnames(test_matrix) <- colnames(train_data[, input_vars, drop = FALSE])
-  
+
   # Make predictions using the neural network model
   predictions <- predict(nn_model, test_matrix)
-  
+
   # Return the neural network model and its predictions
   return(list(model = nn_model, predictions = predictions))
 }
@@ -202,16 +180,16 @@ build_neural_net <- function(train_data, test_data, input_vars, hidden_structure
 calculate_metrics <- function(actual_values, predicted_values) {
   # Calculate Root Mean Squared Error
   rmse <- sqrt(mean((actual_values - predicted_values)^2))
-  
+
   # Calculate Mean Absolute Error
   mae <- mean(abs(actual_values - predicted_values))
-  
+
   # Calculate Mean Absolute Percentage Error
   mape <- mean(abs((actual_values - predicted_values) / actual_values)) * 100
-  
+
   # Calculate Symmetric Mean Absolute Percentage Error
   smape <- mean(abs(actual_values - predicted_values) / (abs(actual_values) + abs(predicted_values)) * 2) * 100
-  
+
   # Return a list containing all the evaluation metrics
   return(list(RMSE = rmse, MAE = mae, MAPE = mape, sMAPE = smape))
 }
@@ -239,27 +217,24 @@ normalize <- function(x) {
   return((x - min(x)) / (max(x) - min(x)))
 }
 
+# Compute range before normalization
+range_before <- apply(train[, -1], 2, range)
 
+# Normalize the dataset
+uow_dataset_train_normalized <- apply(train[, -1], 2, normalize)
 
-# Compute the range of each column before and after normalization
-train_range <- apply(train[, -1], 2, range)
-train_normalized_range <- apply(uow_dataset_train_normalized[, -1], 2, range)
+# Compute range after normalization
+range_after <- apply(uow_dataset_train_normalized, 2, range)
 
-# Create a matrix with the range values
-range_matrix <- rbind(train_range[1, ], train_normalized_range[1, ])
+# Plot range before normalization
+plot(range_before, main = "Range Before Normalization", xlab = "Features", ylab = "Range")
 
-# Define the x-axis labels
-x_labels <- colnames(train)[-1]
-
-# Plot the range values as a bar chart
-barplot(range_matrix, beside = TRUE, col = c("red", "blue"),
-        xlab = "Column", ylab = "Value", main = "Effect of Normalization on Value Range",
-        names.arg = x_labels, legend.text = c("Before Normalization", "After Normalization"))
+# Plot range after normalization
+plot(range_after, main = "Range After Normalization", xlab = "Features", ylab = "Range")
 
 
 # Apply normalization function to all columns except the date column in the testing set
-uow_dataset_test_normalized <- test
-uow_dataset_test_normalized[, -1] <- apply(test[, -1], 2, normalize)
+uow_dataset_test_normalized <- apply(test[, -1], 2, normalize)
 
 # Rename columns in the testing set to match the column names in the training set
 colnames(uow_dataset_test_normalized) <- colnames(uow_dataset_train_normalized)
@@ -278,11 +253,15 @@ narx_input_vectors <- list(
 # Build NARX models
 # Define an empty list to store the models
 narx_models <- list()
+summary(uow_dataset_train_normalized)
+summary(uow_dataset_test_normalized)
 # Use a for loop to iterate over the input vectors
 for (i in 1:length(narx_input_vectors)) {
   # Build a MLP model using the build_neural_net function, passing in the normalized training and test datasets,
   narx_models[[i]] <- build_neural_net(uow_dataset_train_normalized, uow_dataset_test_normalized, narx_input_vectors[[i]], c(5))
 }
+
+uow_dataset_test_normalized <- as.data.frame(uow_dataset_test_normalized)
 
 # Evaluate NARX models
 # Define an empty list to store the evaluation metrics
